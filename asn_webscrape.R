@@ -1,7 +1,6 @@
 library(rvest)
 library(dplyr)
 
-# Function to scrape all pages for a given year
 scrape_asn_year <- function(year) {
   base_url <- paste0("https://asn.flightsafety.org/database/year/", year, "/")
   all_data <- data.frame()
@@ -11,11 +10,11 @@ scrape_asn_year <- function(year) {
     url <- paste0(base_url, page)
     message("Scraping: ", url)
     
-    # Try reading the page; exit on error
+    #read page; exit on error
     tryCatch({
       page_html <- read_html(url)
       
-      # Attempt to find the accident table
+      #accident table
       table_node <- page_html %>% html_node("table")
       
       if (is.na(table_node) || is.null(table_node)) {
@@ -23,16 +22,16 @@ scrape_asn_year <- function(year) {
         break
       }
       
-      # Extract the table
+      #get table
       page_data <- table_node %>% html_table(fill = TRUE)
       
-      # If empty or too small, assume end of data
+      #no data in the table, finish
       if (nrow(page_data) < 1) {
         message("Empty table found. Ending scrape.")
         break
       }
       
-      # Add to cumulative data
+      #merge all data
       all_data <- bind_rows(all_data, page_data)
       page <- page + 1
       
@@ -45,8 +44,5 @@ scrape_asn_year <- function(year) {
   return(all_data)
 }
 
-# Example: Scrape accidents from 1919
 accidents_1919 <- scrape_asn_year(1919)
-
-# View the first few rows
 head(accidents_1919)
