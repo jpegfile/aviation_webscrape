@@ -3,7 +3,7 @@ library(tidyverse)
 library(stringr)
 library(lubridate)
 
-# Build URL for a given year and page number
+# b3a build url
 build_url <- function(year, page = 0) {
   base <- "https://www.baaa-acro.com/crash-archives"
   query <- paste0(
@@ -26,7 +26,7 @@ build_url <- function(year, page = 0) {
   paste0(base, query)
 }
 
-# Extract summary table + report links from one page
+# extract summary table and report links from one page
 scrape_page <- function(year, page) {
   url <- build_url(year, page)
   message("Scraping summary page: ", url)
@@ -84,7 +84,7 @@ scrape_page <- function(year, page) {
   return(df)
 }
 
-# Extract and clean detailed info from each report
+# extract and clean detailed info from each report
 scrape_report <- function(url) {
   message("Scraping report details: ", url)
   page <- read_html(url)
@@ -123,7 +123,7 @@ scrape_report <- function(url) {
     list(date = formatted_date, time = formatted_time)
   }
   
-  # ---- Clean raw scraped fields ----
+  # ---- clean raw scraped fields ----
   raw_date_time <- clean_field(get_text_by_class("crash-date"), "Date & time")
   parsed <- parse_date_time(raw_date_time)
   
@@ -139,7 +139,7 @@ scrape_report <- function(url) {
   pax_fatalities_raw <- clean_field(get_text_by_class("crash-pax-fatalities"), "Pax fatalities")
   total_fatalities_raw <- clean_field(get_text_by_class("crash-total-fatalities"), "Total fatalities")
   
-  # ---- Robust numeric conversion ----
+  # ---- numeric conversion ----
   extract_numeric <- function(text) {
     num <- str_extract(text, "\\d+")
     as.numeric(num)
@@ -167,8 +167,8 @@ scrape_report <- function(url) {
   )
 }
 
-# Full-year scraper combining summary + detailed info
-scrape_year_with_reports <- function(year, max_pages = 100, delay = 1) {
+# full-year scraper combining summary and detailed info
+scrape_year_with_reports <- function(year, max_pages = 5000, delay = 1) {
   all_data <- list()
   page <- 0
   
@@ -192,12 +192,73 @@ scrape_year_with_reports <- function(year, max_pages = 100, delay = 1) {
   bind_rows(all_data)
 }
 
-result <- scrape_year_with_reports(1918)
+#sometimes the site does not respond, this will try to scrape the year again, 5 times
+retry_scrape <- function(year, max_attempts = 5, delay = 2) {
+  attempt <- 1
+  while (attempt <= max_attempts) {
+    message("Attempt ", attempt, " for year ", year)
+    result <- tryCatch({
+      scrape_year_with_reports(year, delay = delay)
+    }, error = function(e) {
+      message("Error: ", e$message)
+      return(NULL)
+    })
+    
+    if (!is.null(result)) {
+      message("✅ Success on attempt ", attempt, " for year ", year)
+      return(result)
+    }
+    
+    Sys.sleep(delay * attempt)  #increasing delay
+    attempt <- attempt + 1
+  }
+  
+  message("❌ Failed after ", max_attempts, " attempts for year ", year)
+  return(NULL)
+}
 
-#Post cleaning
-result_clean <- result %>%
-  mutate(date = dmy(date.y)) %>%
-  relocate(report_url, .after = last_col()) %>%
-  relocate(date, .before = location) %>%
-  relocate(aircraft_type = aircraft_type.y, .after = date) %>%
-  select(-c(date.x, aircraft_type.x, date.y, fatalities))
+#start scrape here
+years <- 2000:2024 #change year here
+all_data <- list()
+
+for (yr in years) {
+  result <- retry_scrape(yr)
+  
+  if (!is.null(result) && nrow(result) > 0) {
+    all_data[[as.character(yr)]] <- result
+  } else {
+    message("⚠️ No data for year ", yr)
+  }
+}
+
+#2003 does not scrape in the loop for some reason
+#so scrape it alone and merge with the rest of the data
+df_2003 <- scrape_year_with_reports(2003, delay = 1)
+
+final_dataset <- bind_rows(c(all_data, list(df_2003)))
+
+#post cleaning
+final_dataset <- bind_rows(all_data) %>%
+  select(-date.x, -aircraft_type.x) %>%
+  rename(date = date.y) %>%
+  mutate(date = lubridate::dmy(date))
+
+#IF NEEDED, this cleans the df_2003 the same way as final_dataset
+#df_2003 <- df_2003 %>%
+  #select(-date.x, -aircraft_type.x) %>%
+  #rename(date = date.y) %>%
+  #mutate(date = lubridate::dmy(date))
+
+write.csv(final_dataset, "BAAA_2000_2024.csv", row.names = FALSE, fileEncoding = "UTF-8")
+
+#diagnostics for scraped data: did all data scraped?
+row_count_by_year <- final_dataset %>%
+  mutate(year = lubridate::year(date)) %>%
+  group_by(year) %>%
+  summarise(accidents = n()) %>%
+  arrange(year)
+
+print(row_count_by_year)
+
+
+#does not scrape airline name
