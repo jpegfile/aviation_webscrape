@@ -3,7 +3,7 @@ library(tidyverse)
 library(stringr)
 library(lubridate)
 
-# b3a build url
+#b3a build url
 build_url <- function(year, page = 0) {
   base <- "https://www.baaa-acro.com/crash-archives"
   query <- paste0(
@@ -26,7 +26,7 @@ build_url <- function(year, page = 0) {
   paste0(base, query)
 }
 
-# extract summary table and report links from one page
+#extract summary table and report links from one page
 scrape_page <- function(year, page) {
   url <- build_url(year, page)
   message("Scraping summary page: ", url)
@@ -84,7 +84,7 @@ scrape_page <- function(year, page) {
   return(df)
 }
 
-# extract and clean detailed info from each report
+#extract and clean detailed info from each report
 scrape_report <- function(url) {
   message("Scraping report details: ", url)
   page <- read_html(url)
@@ -123,7 +123,7 @@ scrape_report <- function(url) {
     list(date = formatted_date, time = formatted_time)
   }
   
-  # ---- clean raw scraped fields ----
+  #clean scraped fields
   raw_date_time <- clean_field(get_text_by_class("crash-date"), "Date & time")
   parsed <- parse_date_time(raw_date_time)
   
@@ -139,7 +139,7 @@ scrape_report <- function(url) {
   pax_fatalities_raw <- clean_field(get_text_by_class("crash-pax-fatalities"), "Pax fatalities")
   total_fatalities_raw <- clean_field(get_text_by_class("crash-total-fatalities"), "Total fatalities")
   
-  # ---- numeric conversion ----
+  #numeric conversion
   extract_numeric <- function(text) {
     num <- str_extract(text, "\\d+")
     as.numeric(num)
@@ -167,7 +167,7 @@ scrape_report <- function(url) {
   )
 }
 
-# full-year scraper combining summary and detailed info
+#full-year scraper combining summary and detailed info
 scrape_year_with_reports <- function(year, max_pages = 5000, delay = 1) {
   all_data <- list()
   page <- 0
@@ -244,10 +244,10 @@ final_dataset <- bind_rows(all_data) %>%
   mutate(date = lubridate::dmy(date))
 
 #IF NEEDED, this cleans the df_2003 the same way as final_dataset
-#df_2003 <- df_2003 %>%
-  #select(-date.x, -aircraft_type.x) %>%
-  #rename(date = date.y) %>%
-  #mutate(date = lubridate::dmy(date))
+df_2003 <- df_2003 %>%
+  select(-date.x, -aircraft_type.x) %>%
+  rename(date = date.y) %>%
+  mutate(date = lubridate::dmy(date))
 
 write.csv(final_dataset, "BAAA_2000_2024.csv", row.names = FALSE, fileEncoding = "UTF-8")
 
@@ -259,6 +259,3 @@ row_count_by_year <- final_dataset %>%
   arrange(year)
 
 print(row_count_by_year)
-
-
-#does not scrape airline name
