@@ -10,6 +10,6 @@ Files:
 
 The "date" columns data type is character as CSV does not hold the data types in it. To convert "date" column to date data type:
 
-install.packages("lubridate")
-  library(lubridate)
-  <dataset_name>$date <- dmy(<dataset_namme>$date)
+- install.packages("lubridate")
+- library(lubridate)
+- <dataset_name>$date <- dmy(<dataset_namme>$date)
