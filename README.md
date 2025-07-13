@@ -1,4 +1,4 @@
-bureau of aircraft accidents archives (b3a): https://www.baaa-acro.com/crash-archives
+Bureau of Aircraft Accidents Archives (B3A): https://www.baaa-acro.com/crash-archives
 
-  - scrapes the table and the report page
-  - scrapres the operators in the tables, from images as well
+  - Scrapes the table and the report page
+  - Scrapres the operators in the table, both from image and text
